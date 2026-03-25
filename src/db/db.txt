@@ -1,0 +1,169 @@
+CREATE TABLE languages (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE,   -- en, es
+  label TEXT          -- English, Spanish
+);
+
+INSERT INTO languages (code, label) VALUES
+('en', 'English'),
+('es', 'Spanish');
+
+ALTER TABLE users ADD COLUMN language_code TEXT REFERENCES languages(code);
+
+-- Sequence and defined type
+CREATE SEQUENCE IF NOT EXISTS users_id_seq;
+
+-- Table Definition
+CREATE TABLE "public"."users" (
+    "id" int4 NOT NULL DEFAULT nextval('users_id_seq'::regclass),
+    "email" text NOT NULL,
+    "password" text NOT NULL,
+    "created_at" timestamp DEFAULT CURRENT_TIMESTAMP,
+    "username" text,
+    "language_code" text,
+    CONSTRAINT "users_language_code_fkey" FOREIGN KEY ("language_code") REFERENCES "public"."languages"("code"),
+    PRIMARY KEY ("id")
+);
+
+-- Sequence and defined type
+CREATE SEQUENCE IF NOT EXISTS languages_id_seq;
+
+-- Table Definition
+CREATE TABLE "public"."languages" (
+    "id" int4 NOT NULL DEFAULT nextval('languages_id_seq'::regclass),
+    "code" text,
+    "label" text,
+    PRIMARY KEY ("id")
+);
+
+CREATE TABLE lessons (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    "order" INT NOT NULL,
+    locked BOOLEAN DEFAULT FALSE,
+
+    language_code TEXT REFERENCES languages(code)
+);
+
+CREATE TABLE steps (
+    id SERIAL PRIMARY KEY,
+    lesson_id INT REFERENCES lessons(id) ON DELETE CASCADE,
+
+    type TEXT CHECK (type IN ('flashcard', 'quiz')),
+
+    word TEXT,
+    translation TEXT,
+
+    question TEXT,
+    correct_answer TEXT,
+
+    "order" INT NOT NULL
+);
+
+CREATE TABLE quiz_options (
+    id SERIAL PRIMARY KEY,
+    step_id INT REFERENCES steps(id) ON DELETE CASCADE,
+    text TEXT NOT NULL
+);
+
+CREATE TABLE user_progress (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  lesson_id INT REFERENCES lessons(id) ON DELETE CASCADE,
+  progress INT DEFAULT 0,
+  completed BOOLEAN DEFAULT FALSE,
+
+  UNIQUE(user_id, lesson_id)
+);
+
+CREATE TABLE user_stats (
+  id SERIAL PRIMARY KEY,
+  user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  xp INT DEFAULT 0,
+  streak INT DEFAULT 0
+);
+
+CREATE UNIQUE INDEX lessons_order_unique
+ON lessons(language_code, "order");
+
+CREATE UNIQUE INDEX steps_order_unique
+ON steps(lesson_id, "order");
+
+----
+
+INSERT INTO lessons (title, "order", locked, language_code) VALUES
+('Greetings', 1, false, 'en'),
+('Basics', 2, false, 'en'),
+('Food', 3, false, 'en'),
+('Phrases', 4, false, 'en');
+
+INSERT INTO lessons (title, "order", locked, language_code) VALUES
+('Saludos', 1, false, 'es'),
+('Básico', 2, false, 'es'),
+('Comida', 3, false, 'es'),
+('Frases', 4, false, 'es');
+
+INSERT INTO steps (lesson_id, type, word, translation, "order") VALUES
+(1, 'flashcard', 'Hello', 'Привет', 1),
+(1, 'flashcard', 'Hi', 'Привет', 2),
+(1, 'flashcard', 'Good morning', 'Доброе утро', 3),
+(1, 'quiz', NULL, NULL, 4),
+(1, 'quiz', NULL, NULL, 5);
+
+UPDATE steps SET question = 'Как сказать "Привет"?', correct_answer = 'Hello' WHERE id = 4;
+UPDATE steps SET question = 'Как сказать "Доброе утро"?', correct_answer = 'Good morning' WHERE id = 5;
+
+INSERT INTO quiz_options (step_id, text) VALUES
+(4, 'Hello'),
+(4, 'Bye'),
+(4, 'Thanks');
+
+INSERT INTO quiz_options (step_id, text) VALUES
+(5, 'Good morning'),
+(5, 'Good night'),
+(5, 'Hello');
+
+//--- урок 2 en
+
+INSERT INTO steps (lesson_id, type, word, translation, "order") VALUES
+(2, 'flashcard', 'Yes', 'Да', 1),
+(2, 'flashcard', 'No', 'Нет', 2),
+(2, 'flashcard', 'Please', 'Пожалуйста', 3),
+(2, 'quiz', NULL, NULL, 4);
+
+UPDATE steps SET question = 'Как сказать "Пожалуйста"?', correct_answer = 'Please' WHERE id = 9;
+
+INSERT INTO quiz_options (step_id, text) VALUES
+(9, 'Please'),
+(9, 'Thanks'),
+(9, 'Hello');
+
+--- ES — steps (урок 5 = Saludos)
+
+INSERT INTO steps (lesson_id, type, word, translation, "order") VALUES
+(5, 'flashcard', 'Hola', 'Привет', 1),
+(5, 'flashcard', 'Adiós', 'Пока', 2),
+(5, 'flashcard', 'Buenos días', 'Доброе утро', 3),
+(5, 'quiz', NULL, NULL, 4);
+
+UPDATE steps SET question = 'Как сказать "Привет"?', correct_answer = 'Hola' WHERE id = 11;
+
+INSERT INTO quiz_options (step_id, text) VALUES
+(11, 'Hola'),
+(11, 'Adiós'),
+(11, 'Gracias');
+
+--- ES — урок 2 (Básico)
+
+INSERT INTO steps (lesson_id, type, word, translation, "order") VALUES
+(6, 'flashcard', 'Sí', 'Да', 1),
+(6, 'flashcard', 'No', 'Нет', 2),
+(6, 'flashcard', 'Por favor', 'Пожалуйста', 3),
+(6, 'quiz', NULL, NULL, 4);
+
+UPDATE steps SET question = 'Как сказать "Пожалуйста"?', correct_answer = 'Por favor' WHERE id = 15;
+
+INSERT INTO quiz_options (step_id, text) VALUES
+(15, 'Por favor'),
+(15, 'Gracias'),
+(15, 'Hola');
