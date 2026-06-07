@@ -217,49 +217,24 @@ router.post('/admin/full-lesson', authMiddleware, async (req, res) => {
 });
 
 router.delete('/admin/lessons/:id', authMiddleware, async (req, res) => {
-  const client = await pool.connect();
-
   try {
     const { id } = req.params;
 
-    await client.query('BEGIN');
-
-    // 1. удалить options
-    await client.query(
-      `
-      DELETE FROM options
-      WHERE step_id IN (
-        SELECT id FROM steps WHERE lesson_id = $1
-      )
-      `,
-      [id]
-    );
-
-    // 2. удалить steps
-    await client.query(
-      'DELETE FROM steps WHERE lesson_id = $1',
-      [id]
-    );
-
-    // 3. удалить lesson
-    await client.query(
+    await pool.query(
       'DELETE FROM lessons WHERE id = $1',
       [id]
     );
 
-    await client.query('COMMIT');
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: 'Lesson deleted with all relations',
+      message: 'Lesson deleted',
     });
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('DELETE lesson error:', error);
 
-    return res.status(500).json({ error: 'Server error' });
-  } finally {
-    client.release();
+    return res.status(500).json({
+      error: 'Server error',
+    });
   }
 });
 
